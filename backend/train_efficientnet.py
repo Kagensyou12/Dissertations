@@ -15,6 +15,13 @@ import matplotlib.pyplot as plt
 import math
 import kagglehub
 
+gpus = tf.config.list_physical_devices('GPU')
+print("Num GPUs Available:", len(gpus))
+if gpus:
+    print(f"Using GPU: {gpus[0].name}")
+else:
+    print("No GPU detected, using CPU.")
+
 # === Paths and dataset download/extraction ===
 backend_path = os.getcwd()
 archive_path = os.path.join(backend_path, "archive")
@@ -304,3 +311,6 @@ plt.ylabel("True Positive Rate")
 plt.title("Receiver Operating Characteristic")
 plt.legend(loc="lower right")
 plt.show()
+
+print("Num GPUs Available:", len(tf.config.list_physical_devices('GPU')))
+print("Is GPU being used?", tf.test.is_gpu_available())
