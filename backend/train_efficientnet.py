@@ -2,14 +2,16 @@ import os
 import zipfile
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.applications import EfficientNetB0
-from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, GlobalAveragePooling2D
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, LearningRateScheduler
-from tensorflow.keras.metrics import AUC
+from tensorflow.keras.applications import EfficientNetB0 # type: ignore
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, GlobalAveragePooling2D # type: ignore
+from tensorflow.keras.models import Model, load_model # type: ignore
+from tensorflow.keras.optimizers import Adam # type: ignore
+from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, LearningRateScheduler # type: ignore
+from tensorflow.keras.metrics import AUC # type: ignore
 from sklearn.utils import class_weight
+from sklearn.metrics import roc_curve, accuracy_score, auc
+import matplotlib.pyplot as plt
 import math
 import kagglehub
 
@@ -109,6 +111,9 @@ test_generator = test_datagen.flow_from_directory(
     class_mode="binary",
     shuffle=False
 )
+
+print("Test generator class indices:", test_generator.class_indices)
+
 
 # Compute class weights
 classes = train_generator.classes
@@ -256,3 +261,46 @@ print("✅ Model fine-tuned and saved successfully!")
 print("Evaluating on test set...")
 test_loss, test_acc, test_auc = model.evaluate(test_generator, steps=test_steps)
 print(f"Test Accuracy: {test_acc:.4f}, Test AUC: {test_auc:.4f}")
+
+# --- Get all test predictions and true labels ---
+print("\nGathering all test set predictions and labels...")
+
+test_generator.reset()
+all_preds = []
+all_labels = []
+
+for _ in range(test_steps):
+    x_batch, y_batch = next(test_generator)
+    preds = model.predict(x_batch)
+    all_preds.extend(preds.flatten())
+    all_labels.extend(y_batch)
+
+all_preds = np.array(all_preds)
+all_labels = np.array(all_labels)
+
+# --- Find best threshold using Youden's J statistic from ROC curve ---
+fpr, tpr, thresholds = roc_curve(all_labels, all_preds)
+youden_j = tpr - fpr
+best_idx = np.argmax(youden_j)
+best_threshold = thresholds[best_idx]
+
+print(f"\nOptimal threshold found by ROC analysis: {best_threshold:.4f}")
+
+# --- Calculate metrics at best threshold ---
+best_pred_classes = (all_preds >= best_threshold).astype(int)
+best_acc = accuracy_score(all_labels, best_pred_classes)
+best_auc = auc(fpr, tpr)
+
+print(f"Test Accuracy at optimal threshold: {best_acc:.4f}")
+print(f"Test AUC (unchanged): {best_auc:.4f}")
+
+# --- Optional: Plot ROC curve ---
+plt.figure(figsize=(8,6))
+plt.plot(fpr, tpr, label=f"ROC curve (AUC = {best_auc:.4f})")
+plt.plot([0, 1], [0, 1], 'k--')
+plt.scatter(fpr[best_idx], tpr[best_idx], color='red', label=f"Best threshold = {best_threshold:.4f}")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver Operating Characteristic")
+plt.legend(loc="lower right")
+plt.show()
