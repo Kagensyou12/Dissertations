@@ -2,8 +2,5 @@ venv/
 __pycache__/
 .DS_Store # MacOS-specific
 # Dataset archives or extracted folders (adjust if needed)
-archive/
-*.zip
-*.tar.gz
 backend/uploads/
 backend/static/
