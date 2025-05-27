@@ -5,3 +5,5 @@ __pycache__/
 archive/
 *.zip
 *.tar.gz
+backend/uploads/
+backend/static/
