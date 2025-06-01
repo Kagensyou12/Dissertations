@@ -3,11 +3,20 @@ import axios from "axios";
 
 function App() {
     const [file, setFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
     const [result, setResult] = useState("");
-    const [heatmapUrl, setHeatmapUrl] = useState("");
 
     const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
+
+        if (selectedFile) {
+            const previewUrl = URL.createObjectURL(selectedFile);
+            setImagePreview(previewUrl);
+        } else {
+            setImagePreview(null);
+        }
+        setResult(""); // Clear previous result when new file selected
     };
 
     const handleUpload = async () => {
@@ -25,20 +34,44 @@ function App() {
             });
 
             setResult(response.data.result);
-            setHeatmapUrl(`http://127.0.0.1:5000${response.data.heatmap_url}`);
         } catch (error) {
             console.error("Error uploading file", error);
             setResult("Error processing image");
         }
     };
 
+    const handleReset = () => {
+        setFile(null);
+        setImagePreview(null);
+        setResult("");
+        // Also reset the file input field value manually:
+        document.getElementById("fileInput").value = null;
+    };
+
     return (
         <div style={{ textAlign: "center", padding: "20px" }}>
             <h1>AI Image Detection</h1>
-            <input type="file" onChange={handleFileChange} />
-            <button onClick={handleUpload}>Upload</button>
+            <input id="fileInput" type="file" onChange={handleFileChange} />
+            <br />
+            <button onClick={handleUpload} style={{ margin: "10px" }}>
+                Upload
+            </button>
+            <button onClick={handleReset} style={{ margin: "10px" }}>
+                Reset
+            </button>
+
+            {imagePreview && (
+                <>
+                    <h3>Uploaded Image</h3>
+                    <img
+                        src={imagePreview}
+                        alt="Uploaded Preview"
+                        style={{ width: "224px", marginTop: "10px" }}
+                    />
+                </>
+            )}
+
             {result && <h2>Result: {result}</h2>}
-            {heatmapUrl && <img src={heatmapUrl} alt="Grad-CAM Heatmap" style={{ width: "224px" }} />}
         </div>
     );
 }

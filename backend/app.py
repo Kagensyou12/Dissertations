@@ -2,29 +2,32 @@ import os
 from flask_cors import CORS
 import numpy as np
 import tensorflow as tf
-from flask import Flask, request, jsonify, send_from_directory
-from tensorflow.keras.models import load_model # type: ignore
+from flask import Flask, request, jsonify
+from tensorflow.keras.models import load_model  # type: ignore
 import cv2
-from visualize_gradcam import make_gradcam_heatmap, save_and_display_gradcam
 from werkzeug.utils import secure_filename
+import traceback
 
 app = Flask(__name__)
 CORS(app)  # Allow requests from frontend
 
 UPLOAD_FOLDER = "uploads"
-STATIC_FOLDER = "static"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(STATIC_FOLDER, exist_ok=True)
 
-MODEL_PATH = "efficientnet_cifake_finetuned.keras"
+MODEL_PATH = "efficientnet_finetuned_cifake.keras"
 model = load_model(MODEL_PATH)
 
-last_conv_layer_name = "top_conv"
-IMG_SIZE = 224
+print("Model layers:")
+for layer in model.layers:
+    print(layer.name, layer.output.shape)
+
+IMG_SIZE = 32
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def preprocess_image(image_path):
     img = cv2.imread(image_path)
@@ -34,6 +37,7 @@ def preprocess_image(image_path):
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
     img = img / 255.0
     return np.expand_dims(img, axis=0)
+
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -59,21 +63,16 @@ def upload_file():
         result = "Real" if prediction < threshold else "Fake"
         print(f"Prediction score: {prediction}")
 
-        heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name)
-        cam_path = os.path.join(STATIC_FOLDER, f"cam_{filename}")
-        save_and_display_gradcam(file_path, heatmap, cam_path=cam_path)
-
         return jsonify({
             "result": result,
-            "heatmap_url": f"/static/{os.path.basename(cam_path)}"
+            "confidence": float(prediction)
         })
 
     except Exception as e:
+        print("Exception during /upload:")
+        traceback.print_exc()  # print full error to console
         return jsonify({"error": str(e)}), 500
 
-@app.route("/static/<filename>")
-def serve_static(filename):
-    return send_from_directory(STATIC_FOLDER, filename)
 
 if __name__ == "__main__":
     app.run(debug=True)
