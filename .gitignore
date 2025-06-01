@@ -7,3 +7,4 @@ archive/
 *.tar.gz
 backend/uploads/
 backend/static/
+backend/plot.py
