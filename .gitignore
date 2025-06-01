@@ -8,3 +8,4 @@ archive/
 backend/uploads/
 backend/static/
 backend/plot.py
+backend/efficientnet_cifake_finetuned.keras
